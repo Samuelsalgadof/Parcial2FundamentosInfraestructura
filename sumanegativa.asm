@@ -5,6 +5,8 @@ section .data
     buffer db 0
     num1 db 0
     num2 db 0
+    signo1 db 1      ; 1 si es positivo, -1 si es negativo
+    signo2 db 1      ; 1 si es positivo, -1 si es negativo
 
 section .bss
     suma resb 1
@@ -35,12 +37,39 @@ _start:
 
     call limpiar_buffer
 
+    ; Multiplica num1 y num2 por sus respectivos signos
     mov al, [num1]
-    add al, [num2]
+    imul al, byte [signo1]
+    mov bl, [num2]
+    imul bl, byte [signo2]
+
+    ; Sumar num1 y num2
+    add al, bl
     mov [suma], al
 
-    add byte [suma], '0'
+    ; Convertir el resultado a ASCII
+    cmp al, 0
+    jge positivo
 
+    ; Si es negativo, agregar signo '-' y convertir a positivo
+    neg al
+    add al, '0'
+    mov [suma], al
+
+    ; Mostrar el signo negativo
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, '-'
+    mov rdx, 1
+    syscall
+
+    jmp mostrar_resultado
+
+positivo:
+    add al, '0'
+    mov [suma], al
+
+mostrar_resultado:
     mov rax, 1
     mov rdi, 1
     mov rsi, resultado_sum
@@ -64,6 +93,17 @@ leer_numero:
     mov rdx, 1
     syscall
     mov al, [buffer]
+
+    ; Verificar si el número es negativo
+    cmp al, '-'
+    jne positivo_numero
+
+    ; Si es negativo, establece el signo como -1 y vuelve a leer el número
+    mov byte [signo1], -1
+    syscall
+    mov al, [buffer]
+
+positivo_numero:
     sub al, '0'
     ret
 
@@ -73,4 +113,4 @@ limpiar_buffer:
     mov rsi, buffer
     mov rdx, 1
     syscall
-ret
+    ret
