@@ -7,67 +7,57 @@ section .data
     num2 db 0
 
 section .bss
-    producto resb 1
+    producto resb 3
 
 section .text
     global _start
 
 _start:
-    ; Mostrar mensaje para el primer número
     mov rax, 1
     mov rdi, 1
     mov rsi, text1
     mov rdx, 25
     syscall
 
-    ; Leer el primer número
     call leer_numero
     mov [num1], al
 
     call limpiar_buffer
 
-    ; Mostrar mensaje para el segundo número
     mov rax, 1
     mov rdi, 1
     mov rsi, text2
     mov rdx, 26
     syscall
 
-    ; Leer el segundo número
     call leer_numero
     mov [num2], al
 
     call limpiar_buffer
 
-    ; Realizar la multiplicación de num1 * num2
-    mov al, [num1]
-    imul al, [num2]
-    mov [producto], al
+    movzx ax, byte [num1]
+    movzx bx, byte [num2]
+    imul ax, bx
 
-    ; Convertir el producto a ASCII sumando '0'
-    add byte [producto], '0'
+    call convertir_a_ascii
 
-    ; Mostrar el mensaje del resultado de la multiplicación
     mov rax, 1
     mov rdi, 1
     mov rsi, resultado_mult
     mov rdx, 34
     syscall
 
-    ; Imprimir el valor del producto
     mov rax, 1
     mov rdi, 1
     mov rsi, producto
-    mov rdx, 1
+    mov rdx, 3
     syscall
 
-    ; Terminar la ejecución del programa
     mov rax, 60
     xor rdi, rdi
     syscall
 
 leer_numero:
-    ; Leer un número del usuario
     mov rax, 0
     mov rdi, 0
     mov rsi, buffer
@@ -78,10 +68,29 @@ leer_numero:
     ret
 
 limpiar_buffer:
-    ; Limpiar el buffer de entrada
     mov rax, 0
     mov rdi, 0
     mov rsi, buffer
     mov rdx, 1
     syscall
+    ret
+
+convertir_a_ascii:
+    mov rdi, producto
+    add rdi, 2
+    mov byte [rdi], 0
+
+    mov rcx, 10
+    xor rbx, rbx
+
+convertir_loop:
+    xor rdx, rdx
+    div rcx
+    add dl, '0'
+    dec rdi
+    mov [rdi], dl
+    inc rbx
+    test rax, rax
+    jnz convertir_loop
+
     ret
