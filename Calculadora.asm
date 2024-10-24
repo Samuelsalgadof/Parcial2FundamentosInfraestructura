@@ -4,7 +4,7 @@ section .data
     text3 db "Menu...", 0xA                       ; Menu inicio
     text4 db "1. Suma", 0xA                       
     text5 db "Ingresar opción: ", 0                       
-    text6 db "¿Desea continuar (s/n)?: "                       
+    text6 db 0xA, "¿Desea continuar (s/n)?: "                       
     resultado_sum db "Tu resultado de la Suma es: ", 0 ; Mensaje para mostrar el resultado
     buffer db 0                                    ; Buffer para almacenar un carácter leído
     num1 db 0                                      ; Variable para el primer número
@@ -25,14 +25,20 @@ _start:
     jmp exit
 
     
-   
 menu:
     call limpiar_buffer
     call pintar_menu
 
-    call leer_numero                                ; Llamar a la función para leer el primer número
+    call leer_letra                                ; Llamar a la función para leer el primer número
     mov [opcion], al                                 ; Almacenar el primer número
 
+    cmp byte [opcion], '1'
+    je sumar
+    jmp exit
+
+
+sumar:
+    
     call limpiar_buffer                             ; Limpiar el buffer
 
     ; Mostrar el mensaje para el primer número
@@ -84,7 +90,7 @@ menu:
     mov rax, 1                                     ; syscall: write
     mov rdi, 1                                     ; file descriptor: stdout
     mov rsi, text6                                 ; dirección del mensaje
-    mov rdx, 25                                    ; longitud del mensaje
+    mov rdx, 26                                    ; longitud del mensaje
     syscall
 
     ; Leer la opción de continuar
