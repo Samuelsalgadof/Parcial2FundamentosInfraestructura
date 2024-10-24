@@ -1,22 +1,26 @@
 section .data
-    text1 db "Escriba tu primer numero: ", 0      ; Mensaje para solicitar el primer número
-    text2 db "Escriba tu segundo numero: ", 0     ; Mensaje para solicitar el segundo número
-    text3 db "Menu...", 0xA                       ; Menu inicio
+    text1 db "Escriba tu primer numero: ", 0      
+    text2 db "Escriba tu segundo numero: ", 0     
+    text3 db "Menu...", 0xA                       
     text4 db "1. Suma", 0xA                       
+    text44 db "4. División", 0xA                       
     text5 db "Ingresar opción: ", 0                       
     text6 db 0xA, "¿Desea continuar (s/n)?: "                       
-    resultado_sum db "Tu resultado de la Suma es: ", 0 ; Mensaje para mostrar el resultado
-    buffer db 0                                    ; Buffer para almacenar un carácter leído
-    num1 db 0                                      ; Variable para el primer número
-    num2 db 0                                      ; Variable para el segundo número
-    opcion db 0                                    ; Variable para la opcion
-    repetir db 's'                                   ; Variable para la repeticion
+    resultado_sum db "Tu resultado de la Suma es: ", 0 
+    resultado_div db "Tu resultado de la division es: ", 0
+    error_msg db "Error: Division por cero", 0xA
+    buffer db 0                                    
+    num1 db 0                                      
+    num2 db 0                                      
+    opcion db 0                                    
+    repetir db 's'                                 
+    cociente db 0
 
 section .bss
-    suma resb 1                                    ; Reservar espacio para almacenar la suma
+    suma resb 1                                    
 
 section .text
-    global _start                                   ; Punto de entrada del programa
+    global _start                                   
 
 _start:
     
@@ -34,6 +38,8 @@ menu:
 
     cmp byte [opcion], '1'
     je sumar
+    cmp byte [opcion], '4'
+    je division
     jmp exit
 
 
@@ -99,6 +105,74 @@ sumar:
     mov [repetir], al  
     jmp _start
 
+
+division:
+    call limpiar_buffer                             ; Limpiar el buffer
+
+    ; Mostrar el mensaje para el primer número
+    mov rax, 1                                     ; syscall: write
+    mov rdi, 1                                     ; file descriptor: stdout
+    mov rsi, text1                                 ; dirección del mensaje
+    mov rdx, 25                                    ; longitud del mensaje
+    syscall
+
+    call leer_numero                                ; Llamar a la función para leer el primer número
+    mov [num1], al                                 ; Almacenar el primer número
+
+    call limpiar_buffer                             ; Limpiar el buffer
+
+    ; Mostrar el mensaje para el segundo número
+    mov rax, 1                                     ; syscall: write
+    mov rdi, 1                                     ; file descriptor: stdout
+    mov rsi, text2                                 ; dirección del mensaje
+    mov rdx, 26                                    ; longitud del mensaje
+    syscall
+
+    call leer_numero                                ; Llamar a la función para leer el segundo número
+    mov [num2], al                                 ; Almacenar el segundo número
+
+    call limpiar_buffer                             ; Limpiar el buffer
+
+    ; Realizar la división
+    mov al, [num1]
+    xor ah, ah              ; limpiar el registro ah
+    mov bl, [num2]
+    
+    ; Verificar división por cero
+    cmp bl, 0
+    je division_por_cero     ; saltar si segundo número es cero
+
+    xor edx, edx            ; limpiar edx para división
+    div bl                   ; dividir al / bl
+    add al, '0'             ; convertir a carácter
+    mov [cociente], al
+
+    ; Mostrar resultado
+    mov rax, 1              ; syscall write
+    mov rdi, 1              ; salida estándar
+    mov rsi, resultado_div   ; mensaje de resultado
+    mov rdx, 32             ; longitud del mensaje
+    syscall                 ; llamada al sistema
+
+    mov rax, 1                                     ; syscall: write
+    mov rdi, 1                                     ; file descriptor: stdout
+    mov rsi, cociente                              ; dirección del resultado
+    mov rdx, 1                                     ; longitud del resultado
+    syscall
+
+    ; Mostrar el mensaje de continuar
+    mov rax, 1                                     ; syscall: write
+    mov rdi, 1                                     ; file descriptor: stdout
+    mov rsi, text6                                 ; dirección del mensaje
+    mov rdx, 26                                    ; longitud del mensaje
+    syscall
+
+    ; Leer la opción de continuar
+    call leer_letra                                ; Llamar a la función para leer la opción
+
+    mov [repetir], al  
+    jmp _start
+    
 exit:
     ; Terminar el programa
     mov rax, 60                                    ; syscall: exit
@@ -116,6 +190,12 @@ pintar_menu:
     mov rdi, 1                                     ; file descriptor: stdout
     mov rsi, text4                                 ; dirección del mensaje
     mov rdx, 8                                    ; longitud del mensaje
+    syscall
+
+    mov rax, 1                                     ; syscall: write
+    mov rdi, 1                                     ; file descriptor: stdout
+    mov rsi, text44                                ; dirección del mensaje
+    mov rdx, 13                                    ; longitud del mensaje
     syscall
     
     mov rax, 1                                     ; syscall: write
@@ -155,3 +235,14 @@ leer_letra:
     syscall
     mov al, [buffer]      ; Cargar el carácter leído (no se hace conversión)
     ret                   ; Regresar de la función
+
+    division_por_cero:
+    ; Manejo de error: división por cero
+    mov rax, 1              ; syscall write
+    mov rdi, 1              ; salida estándar
+    mov rsi, error_msg      ; mensaje de error
+    mov rdx, 26             ; longitud del mensaje de error
+    syscall                 ; llamada al sistema
+
+    jmp _start
+    
