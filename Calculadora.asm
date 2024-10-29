@@ -1,11 +1,11 @@
 section .data
-    msg1 db "Ingrese el primer numero: ", 0
+    msg1 db 0xA, "Ingrese el primer numero: ", 0
     lmsg1 equ $ - msg1
 
     msg2 db "Ingrese el segundo numero: ", 0
     lmsg2 equ $ - msg2
 
-    msg3 db "Seleccione la operacion (+, -, *, /, q para salir): ", 0
+    msg3 db "Seleccione la operacion (+, -, *, /, s para salir): ", 0
     lmsg3 equ $ - msg3
 
     msg4 db "Resultado: ", 0
@@ -13,6 +13,9 @@ section .data
 
     msg_error db "Error: No se puede dividir por cero", 10, 0
     lmsg_error equ $ - msg_error
+
+    msg_entrada db "Error: Caracter no valido", 10, 0
+    lmsg_entrada equ $ - msg_entrada
 
 section .bss
     num1 resb 6           ; espacio para el primer número (hasta 4 dígitos + signo + null)
@@ -54,7 +57,7 @@ operacion_loop:
     mov eax, 3
     mov ebx, 0
     mov ecx, num2
-    mov edx, 6          ; Leer hasta 6 bytes para el número completo (incluyendo el signo y null)
+    mov edx, 6          
     int 80h
     call ascii_a_decimal_num2
 
@@ -74,7 +77,7 @@ operacion_loop:
 
     ; Comparar operación y llamar a la función correspondiente
     mov al, [op]
-    cmp al, 'q'
+    cmp al, 's'
     je salir
     cmp al, '+'
     je sumar
@@ -84,6 +87,7 @@ operacion_loop:
     je multiplicar
     cmp al, '/'
     je dividir
+    jmp mensaje_operacion
 
     ; Operaciones
 sumar:
@@ -106,13 +110,17 @@ multiplicar:
     jmp mostrar_resultado
 
 dividir:
-    mov eax, [num1_decimal]
-    mov ebx, [num2_decimal]
-    cmp ebx, 0
-    je error_division_cero
-    idiv ebx
-    call decimal_a_ascii
-    jmp mostrar_resultado
+    mov eax, [num1_decimal] 
+    mov ebx, [num2_decimal] 
+    cmp ebx, 0              
+    ; Comparar divisor con 0
+    je error_division_cero   
+
+    cdq                      
+    idiv ebx                 
+    call decimal_a_ascii     
+    jmp mostrar_resultado    
+
 
 error_division_cero:
     ; Mostrar mensaje de error
@@ -240,6 +248,14 @@ convertir_positivo:
 agregar_signo_negativo:
     mov byte [edi], '-'
     dec edi
+
+mensaje_operacion:
+    mov eax, 3
+    mov ebx, 0
+    mov ecx, msg_entrada
+    mov edx, lmsg_entrada
+    int 80h
+    jmp operacion_loop
 
 fin_conversion_ascii:
     inc edi
