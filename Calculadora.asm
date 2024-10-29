@@ -1,248 +1,225 @@
 section .data
-    text1 db "Escriba tu primer numero: ", 0      
-    text2 db "Escriba tu segundo numero: ", 0     
-    text3 db "Menu...", 0xA                       
-    text4 db "1. Suma", 0xA                       
-    text44 db "4. División", 0xA                       
-    text5 db "Ingresar opción: ", 0                       
-    text6 db 0xA, "¿Desea continuar (s/n)?: "                       
-    resultado_sum db "Tu resultado de la Suma es: ", 0 
-    resultado_div db "Tu resultado de la division es: ", 0
-    error_msg db "Error: Division por cero", 0xA
-    buffer db 0                                    
-    num1 db 0                                      
-    num2 db 0                                      
-    opcion db 0                                    
-    repetir db 's'                                 
-    cociente db 0
+    msg1 db "Ingrese el primer numero: ", 0
+    lmsg1 equ $ - msg1
+
+    msg2 db "Ingrese el segundo numero: ", 0
+    lmsg2 equ $ - msg2
+
+    msg3 db "Seleccione la operacion (+, -, *, /, q para salir): ", 0
+    lmsg3 equ $ - msg3
+
+    msg4 db "Resultado: ", 0
+    lmsg4 equ $ - msg4
+
+    msg_error db "Error: No se puede dividir por cero", 10, 0
+    lmsg_error equ $ - msg_error
 
 section .bss
-    suma resb 1                                    
+    num1 resb 5           ; espacio para el primer número (hasta 4 dígitos + signo)
+    num2 resb 5           ; espacio para el segundo número (hasta 4 dígitos + signo)
+    num1_decimal resd 1   ; espacio para el primer número en decimal
+    num2_decimal resd 1   ; espacio para el segundo número en decimal
+    op resb 1             ; espacio para la operación
+    resultado resb 10     ; espacio para el resultado
 
 section .text
-    global _start                                   
+    global _start
 
 _start:
-    
-    cmp byte [repetir], 's'
-    je menu
-    jmp exit
+    ; Inicio del bucle de operaciones
+operacion_loop:
+    ; Solicitar el primer número
+    mov eax, 4
+    mov ebx, 1
+    mov ecx, msg1
+    mov edx, lmsg1
+    int 80h
 
-    
-menu:
-    call limpiar_buffer
-    call pintar_menu
+    ; Leer el primer número
+    mov eax, 3
+    mov ebx, 0
+    mov ecx, num1
+    mov edx, 5          ; Leer hasta 5 bytes para el número completo (incluyendo el signo)
+    int 80h
+    call ascii_a_decimal_num1
 
-    call leer_letra                                ; Llamar a la función para leer el primer número
-    mov [opcion], al                                 ; Almacenar el primer número
+    ; Solicitar el segundo número
+    mov eax, 4
+    mov ebx, 1
+    mov ecx, msg2
+    mov edx, lmsg2
+    int 80h
 
-    cmp byte [opcion], '1'
+    ; Leer el segundo número
+    mov eax, 3
+    mov ebx, 0
+    mov ecx, num2
+    mov edx, 5          ; Leer hasta 5 bytes para el número completo (incluyendo el signo)
+    int 80h
+    call ascii_a_decimal_num2
+
+    ; Solicitar la operación
+    mov eax, 4
+    mov ebx, 1
+    mov ecx, msg3
+    mov edx, lmsg3
+    int 80h
+
+    ; Leer la operación
+    mov eax, 3
+    mov ebx, 0
+    mov ecx, op
+    mov edx, 1
+    int 80h
+
+    ; Comparar operación y llamar a la función correspondiente
+    mov al, [op]
+    cmp al, 'q'
+    je salir
+    cmp al, '+'
     je sumar
-    cmp byte [opcion], '4'
-    je division
-    jmp exit
+    cmp al, '-'
+    je restar
+    cmp al, '*'
+    je multiplicar
+    cmp al, '/'
+    je dividir
 
-
+    ; Operaciones
 sumar:
-    
-    call limpiar_buffer                             ; Limpiar el buffer
+    mov eax, [num1_decimal]
+    add eax, [num2_decimal]
+    call decimal_a_ascii
+    jmp mostrar_resultado
 
-    ; Mostrar el mensaje para el primer número
-    mov rax, 1                                     ; syscall: write
-    mov rdi, 1                                     ; file descriptor: stdout
-    mov rsi, text1                                 ; dirección del mensaje
-    mov rdx, 25                                    ; longitud del mensaje
-    syscall
+restar:
+    mov eax, [num1_decimal]
+    sub eax, [num2_decimal]
+    call decimal_a_ascii
+    jmp mostrar_resultado
 
-    call leer_numero                                ; Llamar a la función para leer el primer número
-    mov [num1], al                                 ; Almacenar el primer número
+multiplicar:
+    mov eax, [num1_decimal]
+    mov ebx, [num2_decimal]
+    mul ebx
+    call decimal_a_ascii
+    jmp mostrar_resultado
 
-    call limpiar_buffer                             ; Limpiar el buffer
+dividir:
+    mov eax, [num1_decimal]
+    mov ebx, [num2_decimal]
+    cmp ebx, 0
+    je error_division_cero
+    div ebx
+    call decimal_a_ascii
+    jmp mostrar_resultado
 
-    ; Mostrar el mensaje para el segundo número
-    mov rax, 1                                     ; syscall: write
-    mov rdi, 1                                     ; file descriptor: stdout
-    mov rsi, text2                                 ; dirección del mensaje
-    mov rdx, 26                                    ; longitud del mensaje
-    syscall
+error_division_cero:
+    ; Mostrar mensaje de error
+    mov eax, 4
+    mov ebx, 1
+    mov ecx, msg_error
+    mov edx, lmsg_error
+    int 80h
+    jmp operacion_loop
 
-    call leer_numero                                ; Llamar a la función para leer el segundo número
-    mov [num2], al                                 ; Almacenar el segundo número
-
-    call limpiar_buffer                             ; Limpiar el buffer
-
-    ; Calcular la suma de los dos números
-    mov al, [num1]                                 ; Cargar el primer número
-    add al, [num2]                                 ; Sumar el segundo número
-    mov [suma], al                                 ; Almacenar el resultado de la suma
-
-    add byte [suma], '0'                           ; Convertir el resultado a carácter
-
-    ; Mostrar el mensaje del resultado
-    mov rax, 1                                     ; syscall: write
-    mov rdi, 1                                     ; file descriptor: stdout
-    mov rsi, resultado_sum                          ; dirección del mensaje
-    mov rdx, 27                                    ; longitud del mensaje
-    syscall
+mostrar_resultado:
+    ; Mostrar mensaje de resultado
+    mov eax, 4
+    mov ebx, 1
+    mov ecx, msg4
+    mov edx, lmsg4
+    int 80h
 
     ; Mostrar el resultado
-    mov rax, 1                                     ; syscall: write
-    mov rdi, 1                                     ; file descriptor: stdout
-    mov rsi, suma                                   ; dirección del resultado
-    mov rdx, 1                                     ; longitud del resultado
-    syscall
+    mov eax, 4
+    mov ebx, 1
+    mov ecx, resultado
+    mov edx, 10
+    int 80h
 
-    ; Mostrar el mensaje de continuar
-    mov rax, 1                                     ; syscall: write
-    mov rdi, 1                                     ; file descriptor: stdout
-    mov rsi, text6                                 ; dirección del mensaje
-    mov rdx, 26                                    ; longitud del mensaje
-    syscall
+    ; Esperar a que el usuario presione enter antes de la siguiente operación
+    mov eax, 3
+    mov ebx, 0
+    mov ecx, resultado   ; Usar el mismo buffer de resultado para capturar el enter
+    mov edx, 1
+    int 80h
+    jmp operacion_loop
 
-    ; Leer la opción de continuar
-    call leer_letra                                ; Llamar a la función para leer la opción
-
-    mov [repetir], al  
-    jmp _start
-
-
-division:
-    call limpiar_buffer                             ; Limpiar el buffer
-
-    ; Mostrar el mensaje para el primer número
-    mov rax, 1                                     ; syscall: write
-    mov rdi, 1                                     ; file descriptor: stdout
-    mov rsi, text1                                 ; dirección del mensaje
-    mov rdx, 25                                    ; longitud del mensaje
-    syscall
-
-    call leer_numero                                ; Llamar a la función para leer el primer número
-    mov [num1], al                                 ; Almacenar el primer número
-
-    call limpiar_buffer                             ; Limpiar el buffer
-
-    ; Mostrar el mensaje para el segundo número
-    mov rax, 1                                     ; syscall: write
-    mov rdi, 1                                     ; file descriptor: stdout
-    mov rsi, text2                                 ; dirección del mensaje
-    mov rdx, 26                                    ; longitud del mensaje
-    syscall
-
-    call leer_numero                                ; Llamar a la función para leer el segundo número
-    mov [num2], al                                 ; Almacenar el segundo número
-
-    call limpiar_buffer                             ; Limpiar el buffer
-
-    ; Realizar la división
-    mov al, [num1]
-    xor ah, ah              ; limpiar el registro ah
-    mov bl, [num2]
-    
-    ; Verificar división por cero
-    cmp bl, 0
-    je division_por_cero     ; saltar si segundo número es cero
-
-    xor edx, edx            ; limpiar edx para división
-    div bl                   ; dividir al / bl
-    add al, '0'             ; convertir a carácter
-    mov [cociente], al
-
-    ; Mostrar resultado
-    mov rax, 1              ; syscall write
-    mov rdi, 1              ; salida estándar
-    mov rsi, resultado_div   ; mensaje de resultado
-    mov rdx, 32             ; longitud del mensaje
-    syscall                 ; llamada al sistema
-
-    mov rax, 1                                     ; syscall: write
-    mov rdi, 1                                     ; file descriptor: stdout
-    mov rsi, cociente                              ; dirección del resultado
-    mov rdx, 1                                     ; longitud del resultado
-    syscall
-
-    ; Mostrar el mensaje de continuar
-    mov rax, 1                                     ; syscall: write
-    mov rdi, 1                                     ; file descriptor: stdout
-    mov rsi, text6                                 ; dirección del mensaje
-    mov rdx, 26                                    ; longitud del mensaje
-    syscall
-
-    ; Leer la opción de continuar
-    call leer_letra                                ; Llamar a la función para leer la opción
-
-    mov [repetir], al  
-    jmp _start
-    
-exit:
+salir:
     ; Terminar el programa
-    mov rax, 60                                    ; syscall: exit
-    xor rdi, rdi                                   ; exit code 0
-    syscall
+    mov eax, 1
+    mov ebx, 0
+    int 80h
 
-pintar_menu:
-    mov rax, 1                                     ; syscall: write
-    mov rdi, 1                                     ; file descriptor: stdout
-    mov rsi, text3                                 ; dirección del mensaje
-    mov rdx, 8                                    ; longitud del mensaje
-    syscall
+; Función para convertir ASCII a decimal (num1)
+ascii_a_decimal_num1:
+    xor eax, eax
+    xor ecx, ecx
+    mov esi, num1
+    movzx ebx, byte [esi]  ; Cargar el primer carácter
+    cmp bl, '-'            ; Comprobar si el número es negativo
+    je negativo_num1
 
-    mov rax, 1                                     ; syscall: write
-    mov rdi, 1                                     ; file descriptor: stdout
-    mov rsi, text4                                 ; dirección del mensaje
-    mov rdx, 8                                    ; longitud del mensaje
-    syscall
+convertir_num1:
+    mov cl, byte [esi]
+    cmp cl, 10            ; Verificar si es salto de línea
+    je fin_conversion1
+    sub cl, '0'
+    imul eax, eax, 10
+    add eax, ecx
+    inc esi
+    jmp convertir_num1
 
-    mov rax, 1                                     ; syscall: write
-    mov rdi, 1                                     ; file descriptor: stdout
-    mov rsi, text44                                ; dirección del mensaje
-    mov rdx, 13                                    ; longitud del mensaje
-    syscall
-    
-    mov rax, 1                                     ; syscall: write
-    mov rdi, 1                                     ; file descriptor: stdout
-    mov rsi, text5                                 ; dirección del mensaje
-    mov rdx, 18                                    ; longitud del mensaje
-    syscall
+negativo_num1:
+    inc esi               ; Saltar el signo
+    jmp convertir_num1
 
+fin_conversion1:
+    mov [num1_decimal], eax
     ret
 
-leer_numero:
-    ; Leer un número de un carácter
-    mov rax, 0                                     ; syscall: read
-    mov rdi, 0                                     ; file descriptor: stdin
-    mov rsi, buffer                                 ; dirección del buffer
-    mov rdx, 1                                     ; leer 1 byte
-    syscall
-    mov al, [buffer]                                ; Cargar el carácter leído
-    sub al, '0'                                     ; Convertir de ASCII a número
-    ret                                             ; Regresar de la función
+; Función para convertir ASCII a decimal (num2)
+ascii_a_decimal_num2:
+    xor eax, eax
+    xor ecx, ecx
+    mov esi, num2
+    movzx ebx, byte [esi]  ; Cargar el primer carácter
+    cmp bl, '-'            ; Comprobar si el número es negativo
+    je negativo_num2
 
-limpiar_buffer:
-    ; Limpiar el buffer (no se utiliza realmente)
-    mov rax, 0                                     ; syscall: read
-    mov rdi, 0                                     ; file descriptor: stdin
-    mov rsi, buffer                                 ; dirección del buffer
-    mov rdx, 1                                     ; leer 1 byte
-    syscall
-    ret                                             ; Regresar de la función
+convertir_num2:
+    mov cl, byte [esi]
+    cmp cl, 10            ; Verificar si es salto de línea
+    je fin_conversion2
+    sub cl, '0'
+    imul eax, eax, 10
+    add eax, ecx
+    inc esi
+    jmp convertir_num2
 
-leer_letra:
-    ; Leer un carácter del usuario (letra o número)
-    mov rax, 0            ; syscall: read
-    mov rdi, 0            ; file descriptor: stdin
-    mov rsi, buffer       ; dirección del buffer
-    mov rdx, 1            ; leer 1 byte
-    syscall
-    mov al, [buffer]      ; Cargar el carácter leído (no se hace conversión)
-    ret                   ; Regresar de la función
+negativo_num2:
+    inc esi               ; Saltar el signo
+    jmp convertir_num2
 
-    division_por_cero:
-    ; Manejo de error: división por cero
-    mov rax, 1              ; syscall write
-    mov rdi, 1              ; salida estándar
-    mov rsi, error_msg      ; mensaje de error
-    mov rdx, 26             ; longitud del mensaje de error
-    syscall                 ; llamada al sistema
+fin_conversion2:
+    mov [num2_decimal], eax
+    ret
 
-    jmp _start
-    
+; Función para convertir decimal a ASCII
+decimal_a_ascii:
+    mov edi, resultado + 9
+    mov ecx, 10
+    mov byte [edi], 0
+    dec edi
+convierte_a_ascii:
+    xor edx, edx
+    div ecx
+    add dl, '0'
+    mov [edi], dl
+    dec edi
+    test eax, eax
+    jnz convierte_a_ascii
+    inc edi
+    mov ecx, edi
+    ret
